@@ -1,4 +1,5 @@
 import random
+import util
 from tree import *
 
 '''
@@ -32,13 +33,32 @@ def solver(graph, num_possible_states, unary, pairwise):
 		slave_parameters.append([])
 		num_subtrees = len(subtrees[p]) * 1.0
 		for tree in subtrees[p]:
-			unary_p = [unary[i] / num_subtrees for i in range(len(unary))]
-			pairwise_p = ([[pairwise[i][j] / num_subtrees for i in range(len(pairwise))]
-				for j in range(len(pairwise))])
+			unary_p = divide_list(unary, num_subtrees)
+			pairwise_p = divide_nested_list(pairwise, num_subtrees)
 			slave_parameters[p].append((unary_p, pairwise_p))
 
 	# TODO: solve each subtree, update parameters on each iteration
-	
+	for p in range(num_nodes):
+		# Solve each subtree for node p
+		x_bar_list = []
+		for (i, tree) in enumerate(subtrees[p]):
+			(unary_p, pairwise_p) = slave_parameters[p][i]
+			x_bar_list.append(solve_subtree(tree, unary_p, pairwise_p))
+
+		# Update parameters for subtrees with node p
+		x_bar_sum = x_bar_list[0]
+		num_subtrees = len(subtrees[p])
+		alpha = 1.0 / num_subtrees
+		for i in range(1, len(x_bar_list)):
+			x_bar_sum = add_lists(x_bar_sum, x_bar_list[i])
+		average_x_bar = divide_list(x_bar_sum, num_subtrees)
+
+		for x_bar in x_bar_list:
+			subgradient_p = multiply_list(subtract_lists(x_bar, average_x_bar), alpha)
+			# TODO: compute subgradient_pq
+
+
+			
 
 
 '''
@@ -56,11 +76,11 @@ Helper function to solve one sub-problem (e.g. one sub-tree that contains
 Returns the optimal solution vector x_bar where x_bar[i]=1 if label_i is 
 	assigned to the current node p, and 0 otherwise.
 Takes the following inputs:
-	- subtree T
+	- tree T
 	- unary potential values unary_p
 	- pairwise potential values pairwise_p
 '''
-def solve_subtree(subtree, unary_p, pairwise_p):
+def solve_subtree(tree, unary_p, pairwise_p):
 	pass
 
 '''
