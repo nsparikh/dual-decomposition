@@ -23,7 +23,21 @@ def solver(graph, num_possible_states, unary, pairwise):
 	# 3) Master updates MRF parameters of all slave MRFs based on 
 	#	 optimal solutions x_bar for each T from previous iteration
 
+	# Divide problem into subproblems that are tree structured
 	subtrees = build_subtrees(graph)
+
+	# Initialize each subproblem
+	slave_parameters = [] # Maintains parameters for each subtree
+	for p in range(num_nodes):
+		slave_parameters.append([])
+		num_subtrees = len(subtrees[p]) * 1.0
+		for tree in subtrees[p]:
+			unary_p = [unary[i] / num_subtrees for i in range(len(unary))]
+			pairwise_p = ([[pairwise[i][j] / num_subtrees for i in range(len(pairwise))]
+				for j in range(len(pairwise))])
+			slave_parameters[p].append((unary_p, pairwise_p))
+
+	# TODO: solve each subtree, update parameters on each iteration
 	
 
 
@@ -43,10 +57,10 @@ Returns the optimal solution vector x_bar where x_bar[i]=1 if label_i is
 	assigned to the current node p, and 0 otherwise.
 Takes the following inputs:
 	- subtree T
-	- unary potential values theta_p_T
-	- pairwise potential values theta_pq_T
+	- unary potential values unary_p
+	- pairwise potential values pairwise_p
 '''
-def solve_subtree(subtree, theta_p_T, theta_pq_T):
+def solve_subtree(subtree, unary_p, pairwise_p):
 	pass
 
 '''
