@@ -14,6 +14,8 @@ Takes the following inputs:
 	  matrix contains all the pairwise potential function values.
 '''
 def solver(graph, num_possible_states, unary, pairwise):
+	NUM_ITERATIONS = 5
+
 	num_nodes = len(num_possible_states)
 
 	# Basic approach
@@ -37,29 +39,44 @@ def solver(graph, num_possible_states, unary, pairwise):
 			pairwise_p = divide_nested_list(pairwise, num_subtrees)
 			slave_parameters[p].append((unary_p, pairwise_p))
 
-	# TODO: solve each subtree, update parameters on each iteration
+	# Solve each subtree, update parameters on each iteration
+	# TODO: add some kind of convergence check instead of just having
+	# 	a preset number of iterations
+	solution_vectors = [None for p in range(num_nodes)]
+	for iteration in range(NUM_ITERATIONS):
+		for p in range(num_nodes):
+			# Solve each subtree for node p
+			x_bar_list = []
+			for (i, tree) in enumerate(subtrees[p]):
+				(unary_p, pairwise_p) = slave_parameters[p][i]
+				x_bar_list.append(solve_subtree(tree, unary_p, pairwise_p))
+			solution_vectors[p] = x_bar_list[0]
+
+			# Update parameters for subtrees with node p
+			x_bar_sum = x_bar_list[0]
+			num_subtrees = len(subtrees[p])
+			alpha = 1.0 / num_subtrees
+			for i in range(1, len(x_bar_list)):
+				x_bar_sum = add_lists(x_bar_sum, x_bar_list[i])
+			average_x_bar = divide_list(x_bar_sum, num_subtrees)
+
+			for (i, x_bar) in enumerate(x_bar_list):
+				subgradient_p = multiply_list(subtract_lists(x_bar, average_x_bar), alpha)
+				(unary_p, pairwise_p) = slave_parameters[p][i]
+				slave_parameters[p][i] = (add_lists(unary_p, subgradient_p), pairwise_p)
+
+	# Obtain a set of solutions and compute the total energy for each node
+	total_energy = 0
 	for p in range(num_nodes):
-		# Solve each subtree for node p
-		x_bar_list = []
-		for (i, tree) in enumerate(subtrees[p]):
-			(unary_p, pairwise_p) = slave_parameters[p][i]
-			x_bar_list.append(solve_subtree(tree, unary_p, pairwise_p))
+		total_energy += unary[find_non_zero(solutions[p])]
 
-		# Update parameters for subtrees with node p
-		x_bar_sum = x_bar_list[0]
-		num_subtrees = len(subtrees[p])
-		alpha = 1.0 / num_subtrees
-		for i in range(1, len(x_bar_list)):
-			x_bar_sum = add_lists(x_bar_sum, x_bar_list[i])
-		average_x_bar = divide_list(x_bar_sum, num_subtrees)
-
-		for x_bar in x_bar_list:
-			subgradient_p = multiply_list(subtract_lists(x_bar, average_x_bar), alpha)
-			# TODO: compute subgradient_pq
-
-
+	# Add in the energy associated with each edge in the graph
+	for i in range(len(graph)):
+		for j in range(i, len(graph)):
+			if graph[i][j] == 1:
+				total_energy += pairwise[find_non_zero(solutions[i])][find_non_zero(solutions[j])]
 			
-
+	return total_energy
 
 '''
 Helper function to build subtrees from the graph
@@ -109,7 +126,7 @@ def tester():
 	# Assigns a random energy value in range (0, MAX_ENERGY) to a given
 	# 	pair (i, j) with probability 0.25
 	pairwise = ([[random.randint(0, MAX_ENERGY) 
-		if random.random() < 0.25 else float("inf")
+		if random.random() < 0.25 else 0.0
 		for i in range(n)]
 		for j in range(n)])
 
@@ -118,7 +135,7 @@ def tester():
 
 '''
 Helper method to build a random graph with num_nodes nodes and num_edges edges.
-Represents the graph as a 2D matrix where graph[i][j] = 1 and graph[j][i] = 1
+Represents the graph as a 2D matrix where graph[i][j] = graph[j][i] = 1
 if there is an edge between nodes i and j.
 '''
 def build_graph(num_nodes, num_edges):
